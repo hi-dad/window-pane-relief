@@ -1,9 +1,20 @@
 name: Build
 
+# Code changes are built and checked on every push. Changes to only the README, pictures or docs
+# skip the build. A release (the Download link, and the update installed copies are offered) only
+# goes out when you ask: Actions → Build → Run workflow with "Publish a release" ticked, or
+# `gh workflow run build.yml -f release=true`.
 on:
   push:
+    paths-ignore: ['**.md', 'LICENSE', 'images/**', 'docs/**', 'previews/**', 'tools/ad/**']
   pull_request:
+    paths-ignore: ['**.md', 'LICENSE', 'images/**', 'docs/**', 'previews/**', 'tools/ad/**']
   workflow_dispatch:
+    inputs:
+      release:
+        description: Publish a release (users get offered the update)
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -12,6 +23,8 @@ jobs:
       contents: write # to publish a release when main changes
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history: the build number is the commit count
 
       - name: Show toolchain
         run: |
@@ -66,7 +79,7 @@ jobs:
         run: |
           test -x "build/Window Pane Relief.app/Contents/MacOS/WindowPaneRelief"
           plutil -lint "build/Window Pane Relief.app/Contents/Info.plist"
-          codesign --verify --verbose "build/Window Pane Relief.app"
+          codesign --verify --deep --strict --verbose "build/Window Pane Relief.app"
           lipo "build/Window Pane Relief.app/Contents/MacOS/WindowPaneRelief" -verify_arch arm64 x86_64
           hdiutil verify dist/WindowPaneRelief.dmg
           for i in 1 2 3 4 5; do xcrun stapler validate dist/WindowPaneRelief.dmg && break; [[ $i == 5 ]] && exit 1; sleep 20; done
@@ -79,11 +92,14 @@ jobs:
 
       # Every update to main becomes the new download behind the README button.
       - name: Publish release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
+          SPARKLE_ED_KEY: ${{ secrets.SPARKLE_ED_KEY }}
         run: |
+          # appcast.xml tells installed copies (Sparkle) about this version; see tools/sparkle.sh.
+          source tools/sparkle.sh && sparkle_appcast dist/WindowPaneRelief.dmg "Window Pane Relief" window-pane-relief "build-$GITHUB_RUN_NUMBER"
           version="$(plutil -extract CFBundleShortVersionString raw "build/Window Pane Relief.app/Contents/Info.plist")"
-          gh release create "build-$GITHUB_RUN_NUMBER" dist/WindowPaneRelief.dmg \
+          gh release create "build-$GITHUB_RUN_NUMBER" dist/WindowPaneRelief.dmg dist/appcast.xml \
             --target "$GITHUB_SHA" --latest \
             --title "Window Pane Relief $version (build $GITHUB_RUN_NUMBER)" --generate-notes

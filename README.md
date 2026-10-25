@@ -24,7 +24,7 @@ Free · macOS 13 or newer · always the latest version
 
 Good to know: both windows need to be on the same desktop (not full screen). To drag inside the pinned window, click it once first.
 
-**Update:** download again and replace the app. **Remove:** pin icon → **Quit**, then drag it to the Trash.
+**Updates:** it offers new versions itself (or pin icon → **Check for Updates…**). **Remove:** pin icon → **Quit**, then drag it to the Trash.
 
 <details><summary>Build it yourself</summary>
 

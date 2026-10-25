@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import ScreenCaptureKit
+import Sparkle
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
@@ -8,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Updates.start()
         setUpStatusItem()
 
         hotKey = HotKey(keyCode: kVK_ANSI_P, modifiers: controlKey | optionKey) { [weak self] in
@@ -87,6 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.target = self
             menu.addItem(item)
         }
+        let update = NSMenuItem(title: "Check for Updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
+        update.target = Updates.controller
+        menu.addItem(update)
         menu.addItem(NSMenuItem(title: "Quit Window Pane Relief", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
@@ -187,4 +192,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 private final class WindowBox {
     let window: AppWindow
     init(_ window: AppWindow) { self.window = window }
+}
+
+// MARK: - Updates
+
+/// Self-updating from this app's GitHub releases (Sparkle): checks about once a day and offers new versions.
+enum Updates {
+    static let controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+    static func start() { controller.startUpdater() }
+    static func check() { controller.checkForUpdates(nil) }
 }
