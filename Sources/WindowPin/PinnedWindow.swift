@@ -67,9 +67,17 @@ final class PinnedWindow: NSObject, SCStreamOutput, SCStreamDelegate {
         }
         self.stream = stream
         stream.startCapture { [weak self] error in
-            guard let error else { return }
-            debugLog("couldn't start capture of \(self?.target.menuTitle ?? "?"): \(error)")
-            DispatchQueue.main.async { self?.close() }
+            DispatchQueue.main.async {
+                // Unpinned while capture was still starting: stop it now, or it runs on with
+                // nothing left to stop it and the screen-sharing indicator stays on.
+                if self?.isClosed ?? true {
+                    Self.stop(stream, output: self)
+                    return
+                }
+                guard let error else { return }
+                debugLog("couldn't start capture of \(self?.target.menuTitle ?? "?"): \(error)")
+                self?.close()
+            }
         }
 
         watchTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -91,10 +99,20 @@ final class PinnedWindow: NSObject, SCStreamOutput, SCStreamDelegate {
         if let activationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(activationObserver)
         }
-        stream?.stopCapture(completionHandler: nil)
+        if let stream { Self.stop(stream, output: self) }
         stream = nil
         panel.close()
         onClose?(self)
+    }
+
+    /// Stops a capture for good. The closure holds on to the stream until macOS confirms it
+    /// stopped; letting it go sooner can leave the capture (and the indicator) running.
+    private static func stop(_ stream: SCStream, output: SCStreamOutput?) {
+        if let output { try? stream.removeStreamOutput(output, type: .screen) }
+        stream.stopCapture { error in
+            if let error { debugLog("stop capture: \(error)") }
+            _ = stream
+        }
     }
 
     // MARK: Showing and hiding the copy

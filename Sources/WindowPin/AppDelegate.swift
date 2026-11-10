@@ -46,13 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
 
-        let frontItem = NSMenuItem(title: "Pin Front Window", action: #selector(pinFrontWindow), keyEquivalent: "p")
-        frontItem.keyEquivalentModifierMask = [.control, .option]
-        frontItem.target = self
-        menu.addItem(frontItem)
-
-        if !pins.isEmpty {
-            menu.addItem(.separator())
+        if pins.isEmpty {
+            let frontItem = NSMenuItem(title: "Pin Front Window", action: #selector(pinFrontWindow), keyEquivalent: "p")
+            frontItem.keyEquivalentModifierMask = [.control, .option]
+            frontItem.target = self
+            menu.addItem(frontItem)
+        } else {
             menu.addItem(header("Pinned"))
             for pin in pins {
                 let item = NSMenuItem(title: "Unpin \(pin.target.menuTitle)", action: #selector(unpinItem(_:)), keyEquivalent: "")
@@ -88,6 +87,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let item = NSMenuItem(title: "Accessibility: not allowed (click to fix)", action: #selector(openAccessibility), keyEquivalent: "")
             item.target = self
             menu.addItem(item)
+        }
+        // macOS pauses a window that's completely covered, so its copy freezes.
+        if !pins.isEmpty {
+            menu.addItem(header("Note: video freezes if a pinned window is fully covered. Leave an edge showing."))
+            menu.addItem(.separator())
         }
         let update = NSMenuItem(title: "Check for Updates…", action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)), keyEquivalent: "")
         update.target = Updates.controller
